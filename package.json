@@ -1,0 +1,37 @@
+{
+  "name": "social-media-manager",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Social Media Management Platform - Full Stack Application",
+  "scripts": {
+    "dev": "npm run dev:client",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "dev:all": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "test": "cd tests && npx jest --config jest.config.ts",
+    "test:server": "cd tests && npx jest --config jest.config.ts --testPathPattern=server/",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "clean": "rimraf node_modules client/node_modules server/node_modules"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.3.0",
+    "@types/supertest": "^6.0.3",
+    "concurrently": "^8.2.0",
+    "dotenv": "^17.3.1",
+    "jest": "^30.2.0",
+    "rimraf": "^5.0.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "mongodb": "^7.1.0"
+  }
+}

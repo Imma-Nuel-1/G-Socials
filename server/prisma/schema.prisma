@@ -1,0 +1,575 @@
+// ============================================
+// PRISMA SCHEMA — Multi-Platform SaaS
+// Social Media Management Platform
+// ============================================
+// Architecture:
+//   - Multi-tenant workspaces (teams share a workspace)
+//   - Real OAuth per platform (Meta, X, LinkedIn, TikTok, YouTube)
+//   - SocialAccount stores encrypted OAuth tokens per connected profile
+//   - Posts publish through SocialAccount → platform API
+//   - MetricSnapshot captures real engagement data pulled by workers
+//   - Webhook verification per platform
+//   - BullMQ workers for publishing, metric polling, token refresh
+//   - Subscription tiers gate feature access per workspace
+//   - RBAC via WorkspaceMember.role
+//   - cuid() IDs, soft delete, audit trail
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  email           String    @unique
+  name            String
+  password        String
+  avatar          String?
+  bio             String?
+  role            UserRole  @default(USER)
+  emailVerified   Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  lockedUntil     DateTime?
+  failedLogins    Int       @default(0)
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  refreshTokens        RefreshToken[]
+  workspaceMemberships WorkspaceMember[]
+  notifications        Notification[]
+  fileUploads          FileUpload[]
+  auditLogs            AuditLog[]
+  sentMessages         Message[]       @relation("SentMessages")
+  receivedMessages     Message[]       @relation("ReceivedMessages")
+
+  @@index([deletedAt])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  VIEWER
+}
+
+// ============================================
+// SESSION & TOKEN MANAGEMENT
+// ============================================
+
+model RefreshToken {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  token       String    @unique
+  userId      String    @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent   String?
+  ipAddress   String?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  replacedBy  String?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ============================================
+// MULTI-TENANT WORKSPACES
+// ============================================
+
+model Workspace {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  slug          String    @unique
+  description   String?
+  avatar        String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  members        WorkspaceMember[]
+  socialAccounts SocialAccount[]
+  posts          Post[]
+  templates      Template[]
+  calendarEvents CalendarEvent[]
+  subscription   Subscription?
+  usageRecords   UsageRecord[]
+  webhookConfigs WebhookConfig[]
+  settings       WorkspaceSettings?
+
+  @@index([deletedAt])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  role        WorkspaceRole @default(EDITOR)
+  joinedAt    DateTime      @default(now())
+  invitedBy   String?
+
+  userId      String        @db.ObjectId
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String        @db.ObjectId
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([userId])
+  @@index([workspaceId])
+  @@map("workspace_members")
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+model WorkspaceSettings {
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId           String    @unique @db.ObjectId
+  workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  defaultTimezone       String    @default("UTC")
+  defaultLanguage       String    @default("en")
+  contentApproval       Boolean   @default(false)
+  autoSaveDrafts        Boolean   @default(true)
+  emailNotifications    Boolean   @default(true)
+  webhookNotifications  Boolean   @default(false)
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("workspace_settings")
+}
+
+// ============================================
+// SOCIAL ACCOUNTS — Real OAuth per Platform
+// ============================================
+
+model SocialAccount {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  platform          Platform
+  platformAccountId String
+  accountName       String
+  accountAvatar     String?
+  accountUrl        String?
+
+  accessToken       String        // AES-256 encrypted
+  refreshToken      String?       // AES-256 encrypted
+  tokenExpiresAt    DateTime?
+  tokenScope        String?
+
+  isActive          Boolean   @default(true)
+  lastSyncedAt      DateTime?
+  lastErrorAt       DateTime?
+  lastErrorMessage  String?
+  platformMeta      Json?
+
+  workspaceId       String    @db.ObjectId
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  posts             Post[]
+  metricSnapshots   MetricSnapshot[]
+
+  @@unique([workspaceId, platform, platformAccountId])
+  @@index([workspaceId])
+  @@index([platform])
+  @@index([tokenExpiresAt])
+  @@map("social_accounts")
+}
+
+enum Platform {
+  FACEBOOK
+  INSTAGRAM
+  TWITTER
+  LINKEDIN
+  TIKTOK
+  YOUTUBE
+}
+
+// ============================================
+// POSTS & CONTENT
+// ============================================
+
+model Post {
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  content         String
+  platform        Platform
+  status          PostStatus  @default(DRAFT)
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  image           String?
+  mediaUrls       String[]
+
+  externalPostId  String?
+  externalUrl     String?
+
+  likes           Int         @default(0)
+  comments        Int         @default(0)
+  shares          Int         @default(0)
+  impressions     Int         @default(0)
+  reach           Int         @default(0)
+  clicks          Int         @default(0)
+  videoViews      Int         @default(0)
+
+  publishError    String?
+  publishAttempts Int         @default(0)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  workspaceId     String      @db.ObjectId
+  workspace       Workspace   @relation(fields: [workspaceId], references: [id])
+  socialAccountId String?     @db.ObjectId
+  socialAccount   SocialAccount? @relation(fields: [socialAccountId], references: [id])
+  templateId      String?     @db.ObjectId
+  template        Template?   @relation(fields: [templateId], references: [id])
+  createdById     String      @db.ObjectId
+
+  metricSnapshots MetricSnapshot[]
+
+  @@index([workspaceId])
+  @@index([socialAccountId])
+  @@index([platform])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([deletedAt])
+  @@index([externalPostId])
+  @@map("posts")
+}
+
+enum PostStatus {
+  DRAFT
+  PENDING_APPROVAL
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
+
+// ============================================
+// METRIC SNAPSHOTS — Real engagement data
+// ============================================
+
+model MetricSnapshot {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  capturedAt    DateTime  @default(now())
+
+  impressions   Int       @default(0)
+  reach         Int       @default(0)
+  engagement    Int       @default(0)
+  likes         Int       @default(0)
+  comments      Int       @default(0)
+  shares        Int       @default(0)
+  clicks        Int       @default(0)
+  videoViews    Int       @default(0)
+  saves         Int       @default(0)
+  profileVisits Int       @default(0)
+  followers     Int       @default(0)
+
+  postId          String?        @db.ObjectId
+  post            Post?          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  socialAccountId String?        @db.ObjectId
+  socialAccount   SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  rawPayload    Json?
+
+  @@index([postId, capturedAt])
+  @@index([socialAccountId, capturedAt])
+  @@index([capturedAt])
+  @@map("metric_snapshots")
+}
+
+// ============================================
+// TEMPLATES
+// ============================================
+
+model Template {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  category    String
+  thumbnail   String?
+  content     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  workspaceId String    @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  createdById String    @db.ObjectId
+  layers      Layer[]
+  posts       Post[]
+
+  @@index([workspaceId])
+  @@index([category])
+  @@map("templates")
+}
+
+model Layer {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  type        LayerType
+  content     String?
+  visible     Boolean   @default(true)
+  locked      Boolean   @default(false)
+  order       Int       @default(0)
+
+  templateId  String    @db.ObjectId
+  template    Template  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("layers")
+}
+
+enum LayerType {
+  TEXT
+  IMAGE
+  SHAPE
+  GROUP
+}
+
+// ============================================
+// WEBHOOK CONFIGURATION
+// ============================================
+
+model WebhookConfig {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  platform        Platform
+  verifyToken     String
+  signingSecret   String    // Encrypted
+  callbackUrl     String
+  isActive        Boolean   @default(true)
+  lastReceivedAt  DateTime?
+
+  workspaceId     String    @db.ObjectId
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([workspaceId, platform])
+  @@index([workspaceId])
+  @@map("webhook_configs")
+}
+
+// ============================================
+// CALENDAR EVENTS
+// ============================================
+
+model CalendarEvent {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  date        DateTime
+  time        String?
+  platform    Platform?
+  type        EventType    @default(POST)
+  status      EventStatus  @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  workspaceId String       @db.ObjectId
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdById String       @db.ObjectId
+
+  @@index([workspaceId])
+  @@index([date])
+  @@map("calendar_events")
+}
+
+enum EventType {
+  POST
+  MEETING
+  REMINDER
+  CAMPAIGN
+}
+
+enum EventStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+// ============================================
+// MESSAGES
+// ============================================
+
+model Message {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  content     String
+  read        Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  senderId    String    @db.ObjectId
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
+  recipientId String    @db.ObjectId
+  recipient   User      @relation("ReceivedMessages", fields: [recipientId], references: [id])
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  data      Json?
+
+  userId    String           @db.ObjectId
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  POST_PUBLISHED
+  POST_FAILED
+  POST_SCHEDULED
+  ACCOUNT_CONNECTED
+  ACCOUNT_DISCONNECTED
+  ACCOUNT_TOKEN_EXPIRING
+  WEBHOOK_RECEIVED
+  WORKSPACE_INVITE
+  SYSTEM
+  BILLING
+}
+
+// ============================================
+// FILE UPLOADS
+// ============================================
+
+model FileUpload {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  filename    String
+  storagePath String
+  mimeType    String
+  size        Int
+  url         String
+
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@map("file_uploads")
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+
+model AuditLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String?  @db.ObjectId
+  user        User?    @relation(fields: [userId], references: [id], onDelete: NoAction)
+
+  workspaceId String?  @db.ObjectId
+  action      String
+  entity      String?
+  entityId    String?
+  metadata    Json?
+  ipAddress   String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// SUBSCRIPTIONS (Stripe-Ready, per Workspace)
+// ============================================
+
+model Subscription {
+  id                   String             @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId          String             @unique @db.ObjectId
+  workspace            Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  stripePriceId        String?
+
+  plan                 SubscriptionPlan   @default(FREE)
+  status               SubscriptionStatus @default(ACTIVE)
+
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+
+  maxSocialAccounts    Int                @default(3)
+  maxPostsPerMonth     Int                @default(30)
+  maxTeamMembers       Int                @default(1)
+
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@map("subscriptions")
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  TRIALING
+  INCOMPLETE
+}
+
+// ============================================
+// USAGE TRACKING (Per Workspace)
+// ============================================
+
+model UsageRecord {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String    @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  metric      String
+  count       Int       @default(1)
+  period      String
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, metric, period])
+  @@index([workspaceId, period])
+  @@map("usage_records")
+}

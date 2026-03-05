@@ -1,0 +1,560 @@
+// ============================================
+// PRISMA SCHEMA — Production SaaS
+// Social Media Management Platform
+// ============================================
+// Design decisions:
+//   - cuid() IDs: URL-safe, sortable, no collisions
+//   - Soft delete via deletedAt (nullable DateTime)
+//   - Audit fields on every mutable model
+//   - Cascading deletes for owned child records
+//   - Unique constraints enforce business rules
+//   - Indexes on every FK + common query columns
+//   - Enums for closed sets, String for open sets
+//   - Multi-tenant safe: every query scopes by userId
+//   - Stripe-ready: Subscription + UsageRecord models
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  password        String    // bcrypt hash, never plain text
+  avatar          String?
+  bio             String?
+  role            UserRole  @default(USER)
+  emailVerified   Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  lockedUntil     DateTime? // Account lockout for brute-force protection
+  failedLogins    Int       @default(0)
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime? // Soft delete
+
+  // Relations
+  posts             Post[]
+  templates         Template[]
+  sentMessages      Message[]          @relation("SentMessages")
+  receivedMessages  Message[]          @relation("ReceivedMessages")
+  teamMemberships   TeamMember[]
+  settings          UserSettings?
+  connectedAccounts ConnectedAccount[]
+  apiKeys           ApiKey[]
+  refreshTokens     RefreshToken[]
+  notifications     Notification[]
+  fileUploads       FileUpload[]
+  auditLogs         AuditLog[]
+  subscription      Subscription?
+  usageRecords      UsageRecord[]
+  calendarEvents    CalendarEvent[]
+
+  @@index([email])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  VIEWER
+}
+
+// ============================================
+// SESSION & TOKEN MANAGEMENT
+// ============================================
+
+model RefreshToken {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent   String?
+  ipAddress   String?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  replacedBy  String?   // Points to the new token on rotation
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ============================================
+// POSTS & CONTENT
+// ============================================
+
+model Post {
+  id            String      @id @default(cuid())
+  content       String
+  platform      Platform
+  status        PostStatus  @default(DRAFT)
+  scheduledAt   DateTime?
+  publishedAt   DateTime?
+  image         String?
+
+  likes         Int         @default(0)
+  comments      Int         @default(0)
+  shares        Int         @default(0)
+  impressions   Int         @default(0)
+  clicks        Int         @default(0)
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  deletedAt     DateTime?
+
+  authorId      String
+  author        User        @relation(fields: [authorId], references: [id])
+  templateId    String?
+  template      Template?   @relation(fields: [templateId], references: [id])
+  analytics     PostAnalytics[]
+
+  @@index([authorId])
+  @@index([platform])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([deletedAt])
+  @@map("posts")
+}
+
+enum Platform {
+  LINKEDIN
+  TWITTER
+  INSTAGRAM
+  FACEBOOK
+  TIKTOK
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+// ============================================
+// TEMPLATES
+// ============================================
+
+model Template {
+  id          String    @id @default(cuid())
+  name        String
+  category    String
+  thumbnail   String?
+  content     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+  layers      Layer[]
+  posts       Post[]
+
+  @@index([authorId])
+  @@index([category])
+  @@map("templates")
+}
+
+model Layer {
+  id          String    @id @default(cuid())
+  name        String
+  type        LayerType
+  content     String?
+  visible     Boolean   @default(true)
+  locked      Boolean   @default(false)
+  order       Int       @default(0)
+
+  templateId  String
+  template    Template  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("layers")
+}
+
+enum LayerType {
+  TEXT
+  IMAGE
+  SHAPE
+  GROUP
+}
+
+// ============================================
+// ANALYTICS
+// ============================================
+
+model PostAnalytics {
+  id            String    @id @default(cuid())
+  date          DateTime
+  impressions   Int       @default(0)
+  engagement    Int       @default(0)
+  clicks        Int       @default(0)
+  shares        Int       @default(0)
+
+  postId        String
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([date])
+  @@map("post_analytics")
+}
+
+model DailyAnalytics {
+  id            String    @id @default(cuid())
+  date          DateTime
+  platform      Platform
+  userId        String
+  impressions   Int       @default(0)
+  engagement    Int       @default(0)
+  clicks        Int       @default(0)
+  followers     Int       @default(0)
+
+  @@unique([date, platform, userId])
+  @@index([userId])
+  @@index([date])
+  @@index([platform])
+  @@map("daily_analytics")
+}
+
+// ============================================
+// TEAM & MESSAGING
+// ============================================
+
+model Team {
+  id          String       @id @default(cuid())
+  name        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  members     TeamMember[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id          String    @id @default(cuid())
+  role        TeamRole  @default(MEMBER)
+  joinedAt    DateTime  @default(now())
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@index([userId])
+  @@index([teamId])
+  @@map("team_members")
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  content     String
+  read        Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  senderId    String
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
+  recipientId String
+  recipient   User      @relation("ReceivedMessages", fields: [recipientId], references: [id])
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  data      Json?
+
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  POST_PUBLISHED
+  POST_FAILED
+  TEAM_INVITE
+  ACCOUNT_CONNECTED
+  ACCOUNT_DISCONNECTED
+  SYSTEM
+  BILLING
+}
+
+// ============================================
+// CALENDAR EVENTS
+// ============================================
+
+model CalendarEvent {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  time        String?
+  platform    Platform?
+  type        EventType    @default(POST)
+  status      EventStatus  @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+  @@map("calendar_events")
+}
+
+enum EventType {
+  POST
+  MEETING
+  REMINDER
+  CAMPAIGN
+}
+
+enum EventStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+// ============================================
+// USER SETTINGS & PREFERENCES
+// ============================================
+
+model UserSettings {
+  id                    String     @id @default(cuid())
+  userId                String     @unique
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  emailNotifications    Boolean    @default(true)
+  pushNotifications     Boolean    @default(true)
+  weeklyReport          Boolean    @default(true)
+  postReminders         Boolean    @default(true)
+  teamUpdates           Boolean    @default(true)
+
+  theme                 Theme      @default(LIGHT)
+  language              String     @default("en")
+  timezone              String     @default("UTC")
+  dateFormat            String     @default("MM/DD/YYYY")
+  timeFormat            String     @default("12h")
+
+  profileVisibility     Visibility @default(PUBLIC)
+  showEmail             Boolean    @default(false)
+  showActivity          Boolean    @default(true)
+
+  defaultPlatform       Platform?
+  autoSaveDrafts        Boolean    @default(true)
+  contentApproval       Boolean    @default(false)
+
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  @@map("user_settings")
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  AUTO
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+  TEAM_ONLY
+}
+
+// ============================================
+// CONNECTED SOCIAL ACCOUNTS
+// ============================================
+
+model ConnectedAccount {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform        Platform
+  accountName     String
+  accountId       String
+  accountAvatar   String?
+
+  accessToken     String    // Encrypted at application layer
+  refreshToken    String?   // Encrypted at application layer
+  tokenExpiry     DateTime?
+
+  isActive        Boolean   @default(true)
+  lastSynced      DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, platform, accountId])
+  @@index([userId])
+  @@map("connected_accounts")
+}
+
+// ============================================
+// API KEYS
+// ============================================
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  key         String    @unique  // Hashed — raw key shown only at creation
+  prefix      String             // First 8 chars for display
+  lastUsed    DateTime?
+  isActive    Boolean   @default(true)
+
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+
+  @@index([userId])
+  @@index([key])
+  @@map("api_keys")
+}
+
+// ============================================
+// FILE UPLOADS
+// ============================================
+
+model FileUpload {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  filename    String
+  storagePath String
+  mimeType    String
+  size        Int
+  url         String
+
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@map("file_uploads")
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  action    String   // e.g., "user.login", "post.create"
+  entity    String?  // e.g., "Post", "ConnectedAccount"
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// SUBSCRIPTIONS (Stripe-Ready)
+// ============================================
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+
+  plan                 SubscriptionPlan   @default(FREE)
+  status               SubscriptionStatus @default(ACTIVE)
+
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@map("subscriptions")
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  TRIALING
+  INCOMPLETE
+}
+
+// ============================================
+// USAGE TRACKING (Rate Limits & Metering)
+// ============================================
+
+model UsageRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  metric    String   // e.g., "posts_created", "ai_generations"
+  count     Int      @default(1)
+  period    String   // e.g., "2026-02" (monthly bucket)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, metric, period])
+  @@index([userId, period])
+  @@map("usage_records")
+}
