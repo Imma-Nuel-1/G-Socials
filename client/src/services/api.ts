@@ -5,7 +5,7 @@
 import { ApiResponse } from '@/types';
 import { getStorageItem, STORAGE_KEYS } from '@/utils/storage';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://g-socials.onrender.com/api';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 

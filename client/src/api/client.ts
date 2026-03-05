@@ -11,7 +11,7 @@ import {
 } from "@/utils/storage";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+  import.meta.env.VITE_API_URL || "https://g-socials.onrender.com/api";
 
 /**
  * Configured Axios instance:
