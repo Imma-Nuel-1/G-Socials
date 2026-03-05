@@ -26,9 +26,6 @@ export const OAUTH_CONFIGS: Record<string, OAuthPlatformConfig> = {
     scopes: [
       "public_profile",
       "email",
-      "user_posts",
-      "pages_show_list",
-      "pages_read_engagement",
     ],
     clientIdEnvKey: "FACEBOOK_APP_ID",
     clientSecretEnvKey: "FACEBOOK_APP_SECRET",
