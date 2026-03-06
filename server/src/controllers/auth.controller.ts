@@ -6,6 +6,7 @@ import type { Request, Response } from "express";
 import type { AuthRequest } from "../middleware/auth.js";
 import * as authService from "../services/auth.service.js";
 import { sendSuccess, sendError } from "../lib/response.js";
+import { prisma } from "../lib/prisma.js";
 
 function getIp(req: Request): string {
   return (
@@ -130,6 +131,53 @@ export async function changePassword(
     getIp(req),
   );
   sendSuccess(res, { message: "Password changed successfully" });
+}
+
+export async function deleteAccount(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const authReq = req as AuthRequest;
+  const userId = authReq.userId!;
+
+  // Find workspaces where this user is the OWNER
+  const ownerMemberships = await prisma.workspaceMember.findMany({
+    where: { userId, role: "OWNER" },
+    select: { workspaceId: true },
+  });
+  const ownedWorkspaceIds = ownerMemberships.map((m) => m.workspaceId);
+
+  // Delete owned workspaces — cascades delete:
+  // WorkspaceMember, SocialAccount, Post, Template, CalendarEvent,
+  // WebhookConfig, WorkspaceSettings, Subscription, UsageRecord
+  // (MetricSnapshot cascades from Post/SocialAccount)
+  if (ownedWorkspaceIds.length > 0) {
+    await prisma.workspace.deleteMany({
+      where: { id: { in: ownedWorkspaceIds } },
+    });
+  }
+
+  // Remove any non-owned workspace memberships
+  await prisma.workspaceMember.deleteMany({ where: { userId } });
+
+  // Delete messages (no cascade — must be done manually)
+  await prisma.message.deleteMany({
+    where: { OR: [{ senderId: userId }, { recipientId: userId }] },
+  });
+
+  // Delete audit logs for this user
+  await prisma.auditLog.deleteMany({ where: { userId } });
+
+  // Delete refresh tokens
+  await prisma.refreshToken.deleteMany({ where: { userId } });
+
+  // Delete user — cascades: Notification, FileUpload
+  await prisma.user.delete({ where: { id: userId } });
+
+  // Clear auth cookie
+  res.clearCookie("refreshToken", { path: "/api/auth" });
+
+  sendSuccess(res, { message: "Account and all associated data deleted successfully" });
 }
 
 // ---- Helper ----

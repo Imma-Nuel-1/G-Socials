@@ -303,6 +303,22 @@ export function HelpView() {
               Feature Requests
             </a>
           </div>
+
+          {/* Legal */}
+          <div className="mt-6 pt-4 border-t border-blue-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Legal</p>
+            <div className="flex flex-wrap gap-4">
+              <a href="/privacy" className="text-blue-600 hover:underline text-sm flex items-center gap-1">
+                <ExternalLink className="w-3 h-3" /> Privacy Policy
+              </a>
+              <a href="/terms" className="text-blue-600 hover:underline text-sm flex items-center gap-1">
+                <ExternalLink className="w-3 h-3" /> Terms of Service
+              </a>
+              <a href="/data-deletion" className="text-blue-600 hover:underline text-sm flex items-center gap-1">
+                <ExternalLink className="w-3 h-3" /> Data Deletion
+              </a>
+            </div>
+          </div>
         </section>
       </div>
     </div>

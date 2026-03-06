@@ -48,4 +48,7 @@ router.post(
   asyncHandler(authCtrl.changePassword),
 );
 
+// Delete own account + all associated data
+router.delete("/account", authenticate, asyncHandler(authCtrl.deleteAccount));
+
 export default router;

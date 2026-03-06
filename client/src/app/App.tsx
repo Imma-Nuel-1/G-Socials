@@ -20,6 +20,9 @@ import { AdsView } from "./components/views/AdsView";
 import { TrashView } from "./components/views/TrashView";
 import { SchedulerView } from "./components/views/SchedulerView";
 import { OAuthCallbackView } from "./components/views/OAuthCallbackView";
+import { PrivacyPolicyView } from "./components/views/PrivacyPolicyView";
+import { DataDeletionView } from "./components/views/DataDeletionView";
+import { TermsView } from "./components/views/TermsView";
 
 // ============================================
 // PROTECTED ROUTE WRAPPER
@@ -89,6 +92,9 @@ export default function App() {
             <Route path="/login" element={<LoginView />} />
             <Route path="/register" element={<RegisterView />} />
             <Route path="/oauth/callback" element={<OAuthCallbackView />} />
+            <Route path="/privacy" element={<PrivacyPolicyView />} />
+            <Route path="/data-deletion" element={<DataDeletionView />} />
+            <Route path="/terms" element={<TermsView />} />
 
             {/* Protected routes */}
             <Route
