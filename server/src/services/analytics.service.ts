@@ -66,24 +66,19 @@ export async function getOverview(workspaceId: string) {
     },
   });
 
-  // Aggregate metrics from posts (cached on post model by workers)
-  const thisWeekPosts = await prisma.post.aggregate({
-    where: { workspaceId, deletedAt: null, publishedAt: { gte: weekAgo } },
-    _sum: {
-      impressions: true,
-      likes: true,
-      comments: true,
-      shares: true,
-      clicks: true,
-      reach: true,
-    },
-  });
+  // Aggregate metrics from MetricSnapshots (account-level, keyed by capturedAt)
+  const socialAccountIds = (
+    await prisma.socialAccount.findMany({
+      where: { workspaceId, isActive: true },
+      select: { id: true },
+    })
+  ).map((a) => a.id);
 
-  const lastWeekPosts = await prisma.post.aggregate({
+  const thisWeekSnapshots = await prisma.metricSnapshot.aggregate({
     where: {
-      workspaceId,
-      deletedAt: null,
-      publishedAt: { gte: twoWeeksAgo, lt: weekAgo },
+      socialAccountId: { in: socialAccountIds },
+      postId: null,
+      capturedAt: { gte: weekAgo },
     },
     _sum: {
       impressions: true,
@@ -95,18 +90,34 @@ export async function getOverview(workspaceId: string) {
     },
   });
 
-  const totalReach = thisWeekPosts._sum.reach ?? 0;
+  const lastWeekSnapshots = await prisma.metricSnapshot.aggregate({
+    where: {
+      socialAccountId: { in: socialAccountIds },
+      postId: null,
+      capturedAt: { gte: twoWeeksAgo, lt: weekAgo },
+    },
+    _sum: {
+      impressions: true,
+      likes: true,
+      comments: true,
+      shares: true,
+      clicks: true,
+      reach: true,
+    },
+  });
+
+  const totalReach = thisWeekSnapshots._sum.reach ?? 0;
   const totalEngagement =
-    (thisWeekPosts._sum.likes ?? 0) +
-    (thisWeekPosts._sum.comments ?? 0) +
-    (thisWeekPosts._sum.shares ?? 0);
-  const totalImpressions = thisWeekPosts._sum.impressions ?? 0;
+    (thisWeekSnapshots._sum.likes ?? 0) +
+    (thisWeekSnapshots._sum.comments ?? 0) +
+    (thisWeekSnapshots._sum.shares ?? 0);
+  const totalImpressions = thisWeekSnapshots._sum.impressions ?? 0;
   const engagementRate =
     totalImpressions > 0
       ? ((totalEngagement / totalImpressions) * 100).toFixed(1)
       : "0";
 
-  const prevReach = lastWeekPosts._sum.reach ?? 0;
+  const prevReach = lastWeekSnapshots._sum.reach ?? 0;
   const reachChange =
     prevReach > 0
       ? (((totalReach - prevReach) / prevReach) * 100).toFixed(1)
@@ -122,15 +133,10 @@ export async function getOverview(workspaceId: string) {
   });
 
   // Followers count from latest metric snapshots per social account
-  const socialAccounts = await prisma.socialAccount.findMany({
-    where: { workspaceId, isActive: true },
-    select: { id: true },
-  });
-
   let totalFollowers = 0;
-  for (const acc of socialAccounts) {
+  for (const accId of socialAccountIds) {
     const latestSnap = await prisma.metricSnapshot.findFirst({
-      where: { socialAccountId: acc.id, postId: null },
+      where: { socialAccountId: accId, postId: null },
       orderBy: { capturedAt: "desc" },
       select: { followers: true },
     });
@@ -152,7 +158,7 @@ export async function getOverview(workspaceId: string) {
     },
     activeCampaigns: { value: activeCampaigns },
     totalFollowers: { value: totalFollowers },
-    totalClicks: { value: thisWeekPosts._sum.clicks ?? 0 },
+    totalClicks: { value: thisWeekSnapshots._sum.clicks ?? 0 },
   };
 
   await cacheSet(cacheKey, result, CACHE_TTL);
