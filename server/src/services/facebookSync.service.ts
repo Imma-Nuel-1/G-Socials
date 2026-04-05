@@ -144,6 +144,7 @@ export async function syncFacebookAccount(
     let fbPosts: FBPost[] = [];
     try {
       fbPosts = await fetchUserPosts(accessToken, 50);
+      console.log(`[FB Sync] fetchUserPosts returned ${fbPosts.length} posts`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       // user_posts permission may not be granted — non-fatal
@@ -167,6 +168,7 @@ export async function syncFacebookAccount(
     try {
       pages = await fetchManagedPages(accessToken);
       pagesFound = pages.length;
+      console.log(`[FB Sync] fetchManagedPages returned ${pages.length} pages:`, pages.map(p => ({ id: p.id, name: p.name, fans: p.fan_count })));
     } catch (e) {
       console.warn("[FB Sync] fetchManagedPages failed:", e);
     }

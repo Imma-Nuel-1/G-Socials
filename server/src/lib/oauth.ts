@@ -26,7 +26,7 @@ export const OAUTH_CONFIGS: Record<string, OAuthPlatformConfig> = {
     scopes: [
       "public_profile",
       "email",
-      "user_posts",
+      // "user_posts",
       "pages_show_list",
       "pages_read_engagement",
     ],
