@@ -20,9 +20,9 @@ export interface OAuthPlatformConfig {
 export const OAUTH_CONFIGS: Record<string, OAuthPlatformConfig> = {
   FACEBOOK: {
     platform: "FACEBOOK",
-    authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
-    tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",
-    revokeUrl: "https://graph.facebook.com/v19.0/me/permissions",
+    authUrl: "https://www.facebook.com/v22.0/dialog/oauth",
+    tokenUrl: "https://graph.facebook.com/v22.0/oauth/access_token",
+    revokeUrl: "https://graph.facebook.com/v22.0/me/permissions",
     scopes: [
       "public_profile",
       "email",

@@ -197,8 +197,8 @@ export async function syncFacebookAccount(
           }, 0);
 
           if (metric.name === "page_impressions") totalImpressions += total;
-          if (metric.name === "page_reach") totalReach += total;
-          if (metric.name === "page_engaged_users") totalEngaged += total;
+          if (metric.name === "page_impressions_unique") totalReach += total;
+          if (metric.name === "page_post_engagements") totalEngaged += total;
         }
       } catch (e) {
         console.warn(`[FB Sync] Page insights for ${page.id} failed:`, e);

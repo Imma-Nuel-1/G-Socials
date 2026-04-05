@@ -6,7 +6,7 @@
 //   pages_show_list, pages_read_engagement
 // ============================================
 
-const GRAPH_BASE = "https://graph.facebook.com/v19.0";
+const GRAPH_BASE = "https://graph.facebook.com/v22.0";
 
 // ── Raw graph fetch ──────────────────────────────────────────────────────────
 
@@ -131,8 +131,7 @@ export async function fetchPageInsights(
 
   const metrics = [
     "page_impressions",
-    "page_reach",
-    "page_engaged_users",
+    "page_impressions_unique",
     "page_post_engagements",
     "page_fan_adds_unique",
   ].join(",");
