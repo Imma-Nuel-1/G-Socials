@@ -1,5 +1,5 @@
 // ============================================
-// OVERVIEW VIEW — Real-time Facebook data, auto-polling
+// OVERVIEW VIEW ï¿½ Real-time Facebook data, auto-polling
 // ============================================
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -94,7 +94,8 @@ export function OverviewView() {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
       if (syncTimerRef.current) clearInterval(syncTimerRef.current);
     };
-  }, [doSync, fetchAll]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // -- Derive metric cards from backend shape ---------------------------------
   const d = overview;
@@ -191,7 +192,7 @@ export function OverviewView() {
             </h2>
             <p className="text-sm text-gray-600">
               {lastUpdated
-                ? `Live data — last synced ${lastUpdated.toLocaleTimeString()}`
+                ? `Live data ï¿½ last synced ${lastUpdated.toLocaleTimeString()}`
                 : "Loading your social media data..."}
             </p>
           </div>
@@ -349,7 +350,7 @@ function RecentActivitySection({ activities }: { activities: any[] }) {
       <div className="space-y-2">
         {activities.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-4">
-            No recent activity — connect a social account and sync to see data.
+            No recent activity ï¿½ connect a social account and sync to see data.
           </p>
         ) : activities.map((activity, index) => (
           <div key={index} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">

@@ -1,5 +1,5 @@
 // ============================================
-// ANALYTICS VIEW — Real-time data with Facebook sync
+// ANALYTICS VIEW ï¿½ Real-time data with Facebook sync
 // ============================================
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -41,7 +41,7 @@ export function AnalyticsView() {
         <div className="mb-6">
           <h2 className="font-semibold text-gray-900 mb-1">Analytics Dashboard</h2>
           <p className="text-sm text-gray-600">
-            Real-time social media performance — auto-refreshes every minute
+            Real-time social media performance ï¿½ auto-refreshes every minute
           </p>
         </div>
         <MetricsGrid />
@@ -133,7 +133,8 @@ function MetricsGrid() {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
       if (syncTimerRef.current) clearInterval(syncTimerRef.current);
     };
-  }, [doSync, fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const d = overview;
 
@@ -342,7 +343,7 @@ function TopPostsCard() {
       <h3 className="font-semibold text-gray-900 mb-4">Top Performing Posts</h3>
       {posts.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-6">
-          No published posts yet — sync your Facebook account to see live data here.
+          No published posts yet ï¿½ sync your Facebook account to see live data here.
         </p>
       ) : (
         <div className="space-y-4">
