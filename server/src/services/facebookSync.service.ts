@@ -177,6 +177,8 @@ export async function syncFacebookAccount(
     let totalImpressions = 0;
     let totalReach = 0;
     let totalEngaged = 0;
+    let totalPageViews = 0;
+    let totalVideoViews = 0;
 
     for (const page of pages) {
       totalFollowers += page.fan_count ?? page.followers_count ?? 0;
@@ -190,15 +192,19 @@ export async function syncFacebookAccount(
           until,
         );
 
+        console.log(`[FB Sync] Page ${page.name} (${page.id}) returned ${insights.length} insight metrics:`);
         for (const metric of insights) {
+          console.log(`[FB Sync]   metric="${metric.name}" period="${metric.period}" values=`, JSON.stringify(metric.values));
           const total = metric.values.reduce((sum, v) => {
             const val = typeof v.value === "number" ? v.value : 0;
             return sum + val;
           }, 0);
+          console.log(`[FB Sync]   → total=${total}`);
 
-          if (metric.name === "page_impressions") totalImpressions += total;
           if (metric.name === "page_impressions_unique") totalReach += total;
           if (metric.name === "page_post_engagements") totalEngaged += total;
+          if (metric.name === "page_views_total") totalPageViews += total;
+          if (metric.name === "page_video_views") totalVideoViews += total;
         }
       } catch (e) {
         console.warn(`[FB Sync] Page insights for ${page.id} failed:`, e);
@@ -206,25 +212,27 @@ export async function syncFacebookAccount(
     }
 
     // ── 3. Upsert account-level MetricSnapshot ────────────────────────────
+    console.log(`[FB Sync] Snapshot totals: followers=${totalFollowers} reach=${totalReach} engaged=${totalEngaged} pageViews=${totalPageViews} videoViews=${totalVideoViews}`);
     await prisma.metricSnapshot.create({
       data: {
         socialAccountId: accountId,
         postId: null,
-        followers: totalFollowers > 0 ? totalFollowers : agg.postCount * 10,
-        impressions: totalImpressions > 0 ? totalImpressions : agg.totalLikes * 5,
-        reach: totalReach > 0 ? totalReach : agg.totalLikes * 4,
-        engagement:
-          totalEngaged > 0
-            ? totalEngaged
-            : agg.totalLikes + agg.totalComments + agg.totalShares,
+        followers: totalFollowers,
+        impressions: totalPageViews,
+        reach: totalReach,
+        engagement: totalEngaged,
         likes: agg.totalLikes,
         comments: agg.totalComments,
         shares: agg.totalShares,
+        videoViews: totalVideoViews,
+        profileVisits: totalPageViews,
         capturedAt: new Date(),
         rawPayload: {
           source: "facebook_graph_api",
           userPosts: fbPosts.length,
           pages: pagesFound,
+          pageViews: totalPageViews,
+          videoViews: totalVideoViews,
         },
       },
     });
