@@ -131,12 +131,13 @@ export async function fetchPageInsights(
 
   // Try metrics one by one — some may be deprecated depending on Page type / API version
   const candidateMetrics = [
-    "page_impressions",
     "page_impressions_unique",
     "page_post_engagements",
-    "page_fan_adds_unique",
     "page_views_total",
     "page_follows",
+    "page_daily_follows_unique",
+    "page_daily_unfollows_unique",
+    "page_video_views",
   ];
 
   const allInsights: FBPageInsight[] = [];
@@ -155,10 +156,12 @@ export async function fetchPageInsights(
       );
       if (res.data?.length) {
         allInsights.push(...res.data);
-        console.log(`[FB Insights] ${pageId} metric "${metric}" OK — ${res.data.length} entries`);
+        console.log(`[FB Insights] ${pageId} "${metric}" — ${res.data.length} entries`);
+      } else {
+        console.log(`[FB Insights] ${pageId} "${metric}" — OK but no data in range`);
       }
     } catch {
-      console.warn(`[FB Insights] ${pageId} metric "${metric}" not available, skipping`);
+      console.warn(`[FB Insights] ${pageId} "${metric}" — not available, skipping`);
     }
   }
 
