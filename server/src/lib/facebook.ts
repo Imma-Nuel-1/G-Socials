@@ -129,24 +129,40 @@ export async function fetchPageInsights(
     data: FBPageInsight[];
   }
 
-  const metrics = [
+  // Try metrics one by one — some may be deprecated depending on Page type / API version
+  const candidateMetrics = [
     "page_impressions",
     "page_impressions_unique",
     "page_post_engagements",
     "page_fan_adds_unique",
-  ].join(",");
+    "page_views_total",
+    "page_follows",
+  ];
 
-  const res = await graphGet<InsightsResponse>(
-    `/${pageId}/insights`,
-    pageAccessToken,
-    {
-      metric: metrics,
-      period: "day",
-      since: String(Math.floor(since.getTime() / 1000)),
-      until: String(Math.floor(until.getTime() / 1000)),
-    },
-  );
-  return res.data ?? [];
+  const allInsights: FBPageInsight[] = [];
+
+  for (const metric of candidateMetrics) {
+    try {
+      const res = await graphGet<InsightsResponse>(
+        `/${pageId}/insights`,
+        pageAccessToken,
+        {
+          metric,
+          period: "day",
+          since: String(Math.floor(since.getTime() / 1000)),
+          until: String(Math.floor(until.getTime() / 1000)),
+        },
+      );
+      if (res.data?.length) {
+        allInsights.push(...res.data);
+        console.log(`[FB Insights] ${pageId} metric "${metric}" OK — ${res.data.length} entries`);
+      }
+    } catch {
+      console.warn(`[FB Insights] ${pageId} metric "${metric}" not available, skipping`);
+    }
+  }
+
+  return allInsights;
 }
 
 /**
