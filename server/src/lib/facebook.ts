@@ -132,7 +132,9 @@ export async function fetchPageInsights(
   // Try metrics one by one — some may be deprecated depending on Page type / API version
   const candidateMetrics = [
     "page_impressions_unique",
+    "page_posts_impressions",
     "page_post_engagements",
+    "page_total_actions",
     "page_views_total",
     "page_follows",
     "page_daily_follows_unique",

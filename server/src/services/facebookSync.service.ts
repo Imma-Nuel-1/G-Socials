@@ -177,6 +177,7 @@ export async function syncFacebookAccount(
     let totalImpressions = 0;
     let totalReach = 0;
     let totalEngaged = 0;
+    let totalClicks = 0;
     let totalPageViews = 0;
     let totalVideoViews = 0;
 
@@ -202,7 +203,9 @@ export async function syncFacebookAccount(
           console.log(`[FB Sync]   → total=${total}`);
 
           if (metric.name === "page_impressions_unique") totalReach += total;
+          if (metric.name === "page_posts_impressions") totalImpressions += total;
           if (metric.name === "page_post_engagements") totalEngaged += total;
+          if (metric.name === "page_total_actions") totalClicks += total;
           if (metric.name === "page_views_total") totalPageViews += total;
           if (metric.name === "page_video_views") totalVideoViews += total;
         }
@@ -212,15 +215,16 @@ export async function syncFacebookAccount(
     }
 
     // ── 3. Upsert account-level MetricSnapshot ────────────────────────────
-    console.log(`[FB Sync] Snapshot totals: followers=${totalFollowers} reach=${totalReach} engaged=${totalEngaged} pageViews=${totalPageViews} videoViews=${totalVideoViews}`);
+    console.log(`[FB Sync] Snapshot totals: followers=${totalFollowers} reach=${totalReach} impressions=${totalImpressions} engaged=${totalEngaged} clicks=${totalClicks} pageViews=${totalPageViews} videoViews=${totalVideoViews}`);
     await prisma.metricSnapshot.create({
       data: {
         socialAccountId: accountId,
         postId: null,
         followers: totalFollowers,
-        impressions: totalPageViews,
+        impressions: totalImpressions,
         reach: totalReach,
         engagement: totalEngaged,
+        clicks: totalClicks,
         likes: agg.totalLikes,
         comments: agg.totalComments,
         shares: agg.totalShares,

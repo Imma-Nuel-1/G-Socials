@@ -155,23 +155,17 @@ export function OverviewView() {
   const engagementMetrics = [
     {
       label: "Impressions",
-      value: fmtNum(
-        engagement.reduce((s: number, r: any) => s + (r.impressions ?? 0), 0),
-      ),
+      value: fmtNum(d?.totalImpressions?.value ?? 0),
       color: "text-blue-600",
     },
     {
       label: "Engagement",
-      value: fmtNum(
-        engagement.reduce((s: number, r: any) => s + (r.engagement ?? 0), 0),
-      ),
+      value: String(d?.engagementRate?.value ?? "0%"),
       color: "text-purple-600",
     },
     {
       label: "Clicks",
-      value: fmtNum(
-        engagement.reduce((s: number, r: any) => s + (r.clicks ?? 0), 0),
-      ),
+      value: fmtNum(d?.totalClicks?.value ?? 0),
       color: "text-orange-600",
     },
     {

@@ -89,6 +89,7 @@ export async function getOverview(workspaceId: string) {
       shares: true,
       clicks: true,
       reach: true,
+      engagement: true,
     },
   });
 
@@ -105,20 +106,26 @@ export async function getOverview(workspaceId: string) {
       shares: true,
       clicks: true,
       reach: true,
+      engagement: true,
     },
   });
 
   console.log(`[Analytics] thisWeekSnapshots._sum=`, JSON.stringify(thisWeekSnapshots._sum));
 
   const totalReach = thisWeekSnapshots._sum.reach ?? 0;
-  const totalEngagement =
-    (thisWeekSnapshots._sum.likes ?? 0) +
-    (thisWeekSnapshots._sum.comments ?? 0) +
-    (thisWeekSnapshots._sum.shares ?? 0);
   const totalImpressions = thisWeekSnapshots._sum.impressions ?? 0;
+  const totalClicks = thisWeekSnapshots._sum.clicks ?? 0;
+  // Use page_post_engagements (stored in engagement field) for engagement rate
+  // Fall back to likes+comments+shares if engagement is 0
+  const snapshotEngagement = thisWeekSnapshots._sum.engagement ?? 0;
+  const totalEngagement = snapshotEngagement > 0
+    ? snapshotEngagement
+    : (thisWeekSnapshots._sum.likes ?? 0) +
+      (thisWeekSnapshots._sum.comments ?? 0) +
+      (thisWeekSnapshots._sum.shares ?? 0);
   const engagementRate =
-    totalImpressions > 0
-      ? ((totalEngagement / totalImpressions) * 100).toFixed(1)
+    totalReach > 0
+      ? ((totalEngagement / totalReach) * 100).toFixed(1)
       : "0";
 
   const prevReach = lastWeekSnapshots._sum.reach ?? 0;
@@ -162,7 +169,8 @@ export async function getOverview(workspaceId: string) {
     },
     activeCampaigns: { value: activeCampaigns },
     totalFollowers: { value: totalFollowers },
-    totalClicks: { value: thisWeekSnapshots._sum.clicks ?? 0 },
+    totalImpressions: { value: totalImpressions },
+    totalClicks: { value: totalClicks },
   };
 
   await cacheSet(cacheKey, result, CACHE_TTL);
