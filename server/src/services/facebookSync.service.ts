@@ -183,7 +183,7 @@ export async function syncFacebookAccount(
     for (const page of pages) {
       totalFollowers += page.fan_count ?? page.followers_count ?? 0;
       try {
-        const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const until = new Date();
         const insights = await fetchPageInsights(
           page.access_token,

@@ -50,18 +50,18 @@ export async function getOverview(workspaceId: string) {
   if (cached) return cached;
 
   const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const twoMonthsAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-  // This week's posts
+  // This month's posts
   const postsThisWeek = await prisma.post.count({
-    where: { workspaceId, createdAt: { gte: weekAgo }, deletedAt: null },
+    where: { workspaceId, createdAt: { gte: monthAgo }, deletedAt: null },
   });
 
   const postsLastWeek = await prisma.post.count({
     where: {
       workspaceId,
-      createdAt: { gte: twoWeeksAgo, lt: weekAgo },
+      createdAt: { gte: twoMonthsAgo, lt: monthAgo },
       deletedAt: null,
     },
   });
@@ -74,13 +74,13 @@ export async function getOverview(workspaceId: string) {
     })
   ).map((a) => a.id);
 
-  console.log(`[Analytics] overview: workspaceId=${workspaceId} socialAccountIds=${JSON.stringify(socialAccountIds)} weekAgo=${weekAgo.toISOString()}`);
+  console.log(`[Analytics] overview: workspaceId=${workspaceId} socialAccountIds=${JSON.stringify(socialAccountIds)} monthAgo=${monthAgo.toISOString()}`);
 
   const thisWeekSnapshots = await prisma.metricSnapshot.aggregate({
     where: {
       socialAccountId: { in: socialAccountIds },
       postId: null,
-      capturedAt: { gte: weekAgo },
+      capturedAt: { gte: monthAgo },
     },
     _sum: {
       impressions: true,
@@ -96,7 +96,7 @@ export async function getOverview(workspaceId: string) {
     where: {
       socialAccountId: { in: socialAccountIds },
       postId: null,
-      capturedAt: { gte: twoWeeksAgo, lt: weekAgo },
+      capturedAt: { gte: twoMonthsAgo, lt: monthAgo },
     },
     _sum: {
       impressions: true,
