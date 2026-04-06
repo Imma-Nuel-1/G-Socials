@@ -74,6 +74,8 @@ export async function getOverview(workspaceId: string) {
     })
   ).map((a) => a.id);
 
+  console.log(`[Analytics] overview: workspaceId=${workspaceId} socialAccountIds=${JSON.stringify(socialAccountIds)} weekAgo=${weekAgo.toISOString()}`);
+
   const thisWeekSnapshots = await prisma.metricSnapshot.aggregate({
     where: {
       socialAccountId: { in: socialAccountIds },
@@ -105,6 +107,8 @@ export async function getOverview(workspaceId: string) {
       reach: true,
     },
   });
+
+  console.log(`[Analytics] thisWeekSnapshots._sum=`, JSON.stringify(thisWeekSnapshots._sum));
 
   const totalReach = thisWeekSnapshots._sum.reach ?? 0;
   const totalEngagement =
