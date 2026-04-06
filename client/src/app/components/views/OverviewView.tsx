@@ -54,6 +54,8 @@ export function OverviewView() {
 
       if (ovRes.status === 'fulfilled') {
         const d = ovRes.value.data ?? ovRes.value;
+        console.log('[Overview] raw response:', ovRes.value);
+        console.log('[Overview] parsed overview:', d);
         setOverview(d);
       }
       if (engRes.status === 'fulfilled') {
