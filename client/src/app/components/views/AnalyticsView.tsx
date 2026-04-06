@@ -2,32 +2,50 @@
 // ANALYTICS VIEW � Real-time data with Facebook sync
 // ============================================
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Search, Clock, Calendar, TrendingUp, TrendingDown,
-  Eye, MousePointerClick, Share2, Sparkles, RefreshCw,
-} from 'lucide-react';
-import { Card } from '../ui/card';
+  Search,
+  Clock,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  Eye,
+  MousePointerClick,
+  Users,
+  FileText,
+  Target,
+  Sparkles,
+  RefreshCw,
+} from "lucide-react";
+import { Card } from "../ui/card";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
-} from 'recharts';
-import apiClient from '@/api/client';
-import analyticsService from '@/services/analyticsService';
-import { useAuth } from '@/hooks/useAuth';
-import { NotificationBell } from '../layout/NotificationBell';
-import { CreatePostButton } from '../layout/CreatePostButton';
+} from "recharts";
+import apiClient from "@/api/client";
+import analyticsService from "@/services/analyticsService";
+import { useAuth } from "@/hooks/useAuth";
+import { NotificationBell } from "../layout/NotificationBell";
+import { CreatePostButton } from "../layout/CreatePostButton";
 
 // How often to re-fetch analytics (ms)
-const POLL_INTERVAL = 60_000;        // 1 min
+const POLL_INTERVAL = 60_000; // 1 min
 // How often to re-sync Facebook data (ms)
-const SYNC_INTERVAL = 5 * 60_000;   // 5 min
+const SYNC_INTERVAL = 5 * 60_000; // 5 min
 
 // -- Helper -----------------------------------------------------------------
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 }
 
@@ -39,17 +57,22 @@ export function AnalyticsView() {
       <Header />
       <div className="p-6 overflow-auto">
         <div className="mb-6">
-          <h2 className="font-semibold text-gray-900 mb-1">Analytics Dashboard</h2>
+          <h2 className="font-semibold text-gray-900 mb-1">
+            Analytics Dashboard
+          </h2>
           <p className="text-sm text-gray-600">
             Real-time social media performance � auto-refreshes every minute
           </p>
         </div>
         <MetricsGrid />
         <EngagementChart />
-        <div className="grid grid-cols-2 gap-6">
-          <AIInsightsCard />
-          <TopPostsCard />
+        <div className="grid grid-cols-3 gap-6 mb-6">
+          <div className="col-span-2">
+            <AIInsightsCard />
+          </div>
+          <PlatformChart />
         </div>
+        <TopPostsCard />
       </div>
     </div>
   );
@@ -64,7 +87,7 @@ function Header() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-blue-600 rounded flex items-center justify-center text-white font-semibold">
-            {user?.name?.charAt(0).toUpperCase() ?? 'U'}
+            {user?.name?.charAt(0).toUpperCase() ?? "U"}
           </div>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -78,11 +101,18 @@ function Header() {
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900">
             <Clock className="w-4 h-4" />
-            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </button>
           <button className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900">
             <Calendar className="w-4 h-4" />
-            {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+            {new Date().toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            })}
           </button>
           <NotificationBell />
           <CreatePostButton />
@@ -103,12 +133,12 @@ function MetricsGrid() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await apiClient.get('/analytics/overview');
+      const res = await apiClient.get("/analytics/overview");
       // Interceptor returns response.data (the envelope), so res.data is the payload
       setOverview(res.data ?? res);
       setLastUpdated(new Date());
     } catch (err) {
-      console.error('[Analytics] overview fetch failed:', err);
+      console.error("[Analytics] overview fetch failed:", err);
     }
   }, []);
 
@@ -140,36 +170,52 @@ function MetricsGrid() {
 
   const metrics = [
     {
-      label: 'Total Reach',
+      label: "Total Reach",
       value: fmtNum(d?.totalReach?.value ?? 0),
-      change: d?.totalReach?.change ?? '--',
-      positive: !String(d?.totalReach?.change ?? '').startsWith('-'),
+      change: d?.totalReach?.change ?? "--",
+      positive: !String(d?.totalReach?.change ?? "").startsWith("-"),
       icon: Eye,
-      iconColor: 'text-blue-600',
+      iconColor: "text-blue-600",
     },
     {
-      label: 'Engagement Rate',
-      value: String(d?.engagementRate?.value ?? '0%'),
-      change: d?.engagementRate?.change ?? '--',
-      positive: !String(d?.engagementRate?.change ?? '').startsWith('-'),
-      icon: MousePointerClick,
-      iconColor: 'text-purple-600',
+      label: "Engagement Rate",
+      value: String(d?.engagementRate?.value ?? "0%"),
+      change: d?.engagementRate?.change ?? "--",
+      positive: !String(d?.engagementRate?.change ?? "").startsWith("-"),
+      icon: TrendingUp,
+      iconColor: "text-purple-600",
     },
     {
-      label: 'Total Clicks',
+      label: "Total Clicks",
       value: fmtNum(d?.totalClicks?.value ?? 0),
       change: null,
       positive: true,
       icon: MousePointerClick,
-      iconColor: 'text-orange-600',
+      iconColor: "text-orange-600",
     },
     {
-      label: 'Total Followers',
+      label: "Total Followers",
       value: fmtNum(d?.totalFollowers?.value ?? 0),
       change: null,
       positive: true,
-      icon: Share2,
-      iconColor: 'text-green-600',
+      icon: Users,
+      iconColor: "text-green-600",
+    },
+    {
+      label: "Posts This Month",
+      value: String(d?.postsThisWeek?.value ?? 0),
+      change: d?.postsThisWeek?.change ?? "--",
+      positive: !String(d?.postsThisWeek?.change ?? "").startsWith("-"),
+      icon: FileText,
+      iconColor: "text-indigo-600",
+    },
+    {
+      label: "Active Campaigns",
+      value: String(d?.activeCampaigns?.value ?? 0),
+      change: null,
+      positive: true,
+      icon: Target,
+      iconColor: "text-rose-600",
     },
   ];
 
@@ -186,12 +232,14 @@ function MetricsGrid() {
           disabled={syncing}
           className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 disabled:opacity-50"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Syncing Facebook...' : 'Sync Now'}
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`}
+          />
+          {syncing ? "Syncing Facebook..." : "Sync Now"}
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {metrics.map((metric, index) => (
           <Card key={index} className="p-6">
             <div className="flex items-center justify-between mb-2">
@@ -200,11 +248,14 @@ function MetricsGrid() {
             </div>
             <div className="font-semibold text-2xl mb-1">{metric.value}</div>
             {metric.change && (
-              <div className={`flex items-center gap-1 text-sm ${metric.positive ? 'text-green-600' : 'text-red-500'}`}>
-                {metric.positive
-                  ? <TrendingUp className="w-3 h-3" />
-                  : <TrendingDown className="w-3 h-3" />
-                }
+              <div
+                className={`flex items-center gap-1 text-sm ${metric.positive ? "text-green-600" : "text-red-500"}`}
+              >
+                {metric.positive ? (
+                  <TrendingUp className="w-3 h-3" />
+                ) : (
+                  <TrendingDown className="w-3 h-3" />
+                )}
                 <span>{metric.change}</span>
               </div>
             )}
@@ -219,22 +270,26 @@ function MetricsGrid() {
 
 function EngagementChart() {
   const [chartData, setChartData] = useState<any[]>([]);
-  const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
+  const [period, setPeriod] = useState<"day" | "week" | "month">("week");
 
   const fetchEngagement = useCallback(async () => {
     try {
-      const res = await apiClient.get('/analytics/engagement', { params: { period } });
+      const res = await apiClient.get("/analytics/engagement", {
+        params: { period },
+      });
       const payload = res.data ?? res;
       // Backend returns: { data: [...snapshots], metrics: {...} }
       const rows: any[] = Array.isArray(payload?.data) ? payload.data : [];
-      setChartData(rows.map((r: any) => ({
-        date: r.date,
-        engagement: r.engagement ?? 0,
-        impressions: r.impressions ?? 0,
-        clicks: r.clicks ?? 0,
-      })));
+      setChartData(
+        rows.map((r: any) => ({
+          date: r.date,
+          engagement: r.engagement ?? 0,
+          impressions: r.impressions ?? 0,
+          clicks: r.clicks ?? 0,
+        })),
+      );
     } catch (err) {
-      console.error('[Analytics] engagement fetch failed:', err);
+      console.error("[Analytics] engagement fetch failed:", err);
     }
   }, [period]);
 
@@ -249,7 +304,9 @@ function EngagementChart() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="font-semibold text-gray-900">Engagement Over Time</h3>
-          <p className="text-sm text-gray-600">Real Facebook performance trends</p>
+          <p className="text-sm text-gray-600">
+            Real Facebook performance trends
+          </p>
         </div>
         <select
           className="text-sm border border-gray-300 rounded px-3 py-1.5"
@@ -277,8 +334,22 @@ function EngagementChart() {
           <XAxis dataKey="date" stroke="#6b7280" tick={{ fontSize: 11 }} />
           <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
           <Tooltip />
-          <Area type="monotone" dataKey="impressions" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorImpressions)" name="Impressions" />
-          <Area type="monotone" dataKey="engagement" stroke="#3b82f6" fillOpacity={1} fill="url(#colorEngagement)" name="Engagement" />
+          <Area
+            type="monotone"
+            dataKey="impressions"
+            stroke="#8b5cf6"
+            fillOpacity={1}
+            fill="url(#colorImpressions)"
+            name="Impressions"
+          />
+          <Area
+            type="monotone"
+            dataKey="engagement"
+            stroke="#3b82f6"
+            fillOpacity={1}
+            fill="url(#colorEngagement)"
+            name="Engagement"
+          />
         </AreaChart>
       </ResponsiveContainer>
     </Card>
@@ -289,14 +360,24 @@ function EngagementChart() {
 
 function AIInsightsCard() {
   const insights = [
-    { type: 'success', title: 'Best posting time', description: 'Your audience is most active 6-9 PM. Schedule posts then for maximum reach.' },
-    { type: 'info',    title: 'Content tip',        description: 'Posts with images get 2.3x more engagement than text-only posts.' },
+    {
+      type: "success",
+      title: "Best posting time",
+      description:
+        "Your audience is most active 6-9 PM. Schedule posts then for maximum reach.",
+    },
+    {
+      type: "info",
+      title: "Content tip",
+      description:
+        "Posts with images get 2.3x more engagement than text-only posts.",
+    },
   ];
 
   const getStyle = (type: string) => {
-    if (type === 'success') return 'bg-green-50 border-green-200';
-    if (type === 'warning')  return 'bg-yellow-50 border-yellow-200';
-    return 'bg-blue-50 border-blue-200';
+    if (type === "success") return "bg-green-50 border-green-200";
+    if (type === "warning") return "bg-yellow-50 border-yellow-200";
+    return "bg-blue-50 border-blue-200";
   };
 
   return (
@@ -307,12 +388,91 @@ function AIInsightsCard() {
       </div>
       <div className="space-y-4">
         {insights.map((insight, index) => (
-          <div key={index} className={`p-4 rounded-lg border ${getStyle(insight.type)}`}>
+          <div
+            key={index}
+            className={`p-4 rounded-lg border ${getStyle(insight.type)}`}
+          >
             <div className="font-medium text-sm mb-1">{insight.title}</div>
             <div className="text-sm text-gray-600">{insight.description}</div>
           </div>
         ))}
       </div>
+    </Card>
+  );
+}
+
+// -- Platform Chart -------------------------------------------------------
+
+function PlatformChart() {
+  const [platforms, setPlatforms] = useState<any[]>([]);
+
+  const fetchPlatforms = useCallback(async () => {
+    try {
+      const res = await apiClient.get("/analytics/platforms");
+      const payload = res.data ?? res;
+      setPlatforms(Array.isArray(payload) ? payload : []);
+    } catch (err) {
+      console.error("[Analytics] platforms fetch failed:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPlatforms();
+    const timer = setInterval(fetchPlatforms, POLL_INTERVAL);
+    return () => clearInterval(timer);
+  }, [fetchPlatforms]);
+
+  const hasData = platforms.length > 0 && platforms.some((p) => p.value > 0);
+
+  return (
+    <Card className="p-6">
+      <h3 className="font-semibold text-gray-900 mb-1">Platform Breakdown</h3>
+      <p className="text-sm text-gray-600 mb-4">Posts by platform</p>
+
+      {!hasData ? (
+        <p className="text-xs text-gray-400 text-center mt-8">
+          No platform data yet
+        </p>
+      ) : (
+        <>
+          <ResponsiveContainer width="100%" height={160}>
+            <PieChart>
+              <Pie
+                data={platforms}
+                cx="50%"
+                cy="50%"
+                innerRadius={45}
+                outerRadius={65}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {platforms.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color ?? "#3b82f6"} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+
+          <div className="mt-3 space-y-1.5">
+            {platforms.map((platform, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between text-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: platform.color ?? "#3b82f6" }}
+                  />
+                  <span className="text-gray-700">{platform.name}</span>
+                </div>
+                <span className="font-medium">{platform.value}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </Card>
   );
 }
@@ -324,11 +484,13 @@ function TopPostsCard() {
 
   const fetchTopPosts = useCallback(async () => {
     try {
-      const res = await apiClient.get('/analytics/top-posts', { params: { limit: 4 } });
+      const res = await apiClient.get("/analytics/top-posts", {
+        params: { limit: 4 },
+      });
       const payload = res.data ?? res;
       setPosts(Array.isArray(payload) ? payload : []);
     } catch (err) {
-      console.error('[Analytics] top-posts fetch failed:', err);
+      console.error("[Analytics] top-posts fetch failed:", err);
     }
   }, []);
 
@@ -343,16 +505,19 @@ function TopPostsCard() {
       <h3 className="font-semibold text-gray-900 mb-4">Top Performing Posts</h3>
       {posts.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-6">
-          No published posts yet � sync your Facebook account to see live data here.
+          No published posts yet � sync your Facebook account to see live data
+          here.
         </p>
       ) : (
         <div className="space-y-4">
           {posts.map((post: any) => (
             <div key={post.id} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
               <div className="flex-1 min-w-0">
-                <div className="text-xs text-blue-600 font-medium mb-1">{post.platform}</div>
+                <div className="text-xs text-blue-600 font-medium mb-1">
+                  {post.platform}
+                </div>
                 <div className="text-sm text-gray-800 truncate mb-2">
-                  {post.content?.slice(0, 80) ?? '(No caption)'}
+                  {post.content?.slice(0, 80) ?? "(No caption)"}
                 </div>
                 <div className="flex items-center gap-4 text-sm text-gray-600">
                   <span>?? {fmtNum(post.likes ?? 0)}</span>

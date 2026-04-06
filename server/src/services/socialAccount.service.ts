@@ -55,6 +55,12 @@ export function getAuthorizationUrl(
 ): { url: string; state: string } {
   const config = getOAuthConfig(platform);
   const { clientId } = getOAuthCredentials(platform);
+  const platformUpper = platform.toUpperCase();
+
+  // Facebook expects comma-delimited scopes; most other providers use spaces.
+  const scopeDelimiter =
+    platformUpper === "FACEBOOK" || platformUpper === "INSTAGRAM" ? "," : " ";
+  const scopeValue = config.scopes.join(scopeDelimiter);
 
   // State parameter for CSRF protection (workspaceId + random)
   const state = Buffer.from(
@@ -68,16 +74,16 @@ export function getAuthorizationUrl(
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: config.scopes.join(" "),
+    scope: scopeValue,
     state,
   });
 
   // Platform-specific tweaks
-  if (platform.toUpperCase() === "TWITTER") {
+  if (platformUpper === "TWITTER") {
     params.set("code_challenge_method", "plain");
     params.set("code_challenge", "challenge"); // In production, use proper PKCE
   }
-  if (platform.toUpperCase() === "LINKEDIN") {
+  if (platformUpper === "LINKEDIN") {
     params.set("scope", config.scopes.join(" "));
   }
 

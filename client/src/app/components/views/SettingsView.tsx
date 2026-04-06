@@ -446,7 +446,8 @@ function ConnectedAccountsTab() {
     const code = params.get("code");
     if (!code) {
       // Error from provider
-      const providerError = params.get("error_description") ?? params.get("error");
+      const providerError =
+        params.get("error_description") ?? params.get("error");
       if (providerError) {
         setToast({ message: `Facebook: ${providerError}`, type: "error" });
       }
@@ -471,7 +472,7 @@ function ConnectedAccountsTab() {
         });
       })
       .finally(() => setIsConnecting(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Show success toast when redirected back from OAuthCallbackView
@@ -482,7 +483,7 @@ function ConnectedAccountsTab() {
       setToast({ message: "Account connected successfully!", type: "success" });
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleConnect = (platform: (typeof SOCIAL_PLATFORMS)[0]) => {
@@ -702,7 +703,7 @@ function ConnectedAccountsTab() {
             <DialogTitle>Connect {selectedPlatform?.name}</DialogTitle>
             <DialogDescription>
               You'll be redirected to {selectedPlatform?.name} to authorize
-              Social Hub to access your account.
+              G-Socials to access your account.
             </DialogDescription>
           </DialogHeader>
 
@@ -1098,9 +1099,9 @@ function ApiKeysTab() {
 
 function PreferencesTab() {
   const [preferences, setPreferences] = useState(() => {
-    let savedTheme = 'light';
+    let savedTheme = "light";
     try {
-      const stored = localStorage.getItem('smm_theme');
+      const stored = localStorage.getItem("smm_theme");
       if (stored) savedTheme = JSON.parse(stored);
     } catch {}
     return {
@@ -1121,10 +1122,12 @@ function PreferencesTab() {
 
   const handleUpdate = async (key: string, value: any) => {
     setPreferences((prev) => ({ ...prev, [key]: value }));
-    if (key === 'theme') {
-      try { localStorage.setItem('smm_theme', JSON.stringify(value)); } catch {}
-      document.documentElement.classList.remove('dark');
-      if (value === 'dark') document.documentElement.classList.add('dark');
+    if (key === "theme") {
+      try {
+        localStorage.setItem("smm_theme", JSON.stringify(value));
+      } catch {}
+      document.documentElement.classList.remove("dark");
+      if (value === "dark") document.documentElement.classList.add("dark");
     }
     try {
       await settingsService.updateUserSettings({

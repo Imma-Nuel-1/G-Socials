@@ -48,7 +48,7 @@ const HELP_CATEGORIES: HelpCategory[] = [
     id: "getting-started",
     title: "Getting Started",
     icon: Book,
-    description: "Learn the basics of Social Hub",
+    description: "Learn the basics of G-Socials",
     articles: 12,
   },
   {
@@ -103,7 +103,7 @@ const FAQS: FAQ[] = [
   {
     question: "Is there a mobile app available?",
     answer:
-      "Yes! Social Hub is available on iOS and Android. Download from the App Store or Google Play Store. All features are synced across devices.",
+      "Yes! G-Socials is available on iOS and Android. Download from the App Store or Google Play Store. All features are synced across devices.",
   },
   {
     question: "How do I cancel or reschedule a post?",
@@ -306,15 +306,26 @@ export function HelpView() {
 
           {/* Legal */}
           <div className="mt-6 pt-4 border-t border-blue-100">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Legal</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+              Legal
+            </p>
             <div className="flex flex-wrap gap-4">
-              <a href="/privacy" className="text-blue-600 hover:underline text-sm flex items-center gap-1">
+              <a
+                href="/privacy"
+                className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+              >
                 <ExternalLink className="w-3 h-3" /> Privacy Policy
               </a>
-              <a href="/terms" className="text-blue-600 hover:underline text-sm flex items-center gap-1">
+              <a
+                href="/terms"
+                className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+              >
                 <ExternalLink className="w-3 h-3" /> Terms of Service
               </a>
-              <a href="/data-deletion" className="text-blue-600 hover:underline text-sm flex items-center gap-1">
+              <a
+                href="/data-deletion"
+                className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+              >
                 <ExternalLink className="w-3 h-3" /> Data Deletion
               </a>
             </div>

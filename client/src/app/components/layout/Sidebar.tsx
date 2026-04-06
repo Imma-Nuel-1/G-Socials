@@ -46,7 +46,7 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   // Derive active view from current URL path
@@ -56,7 +56,7 @@ export function Sidebar() {
     <aside className="w-[200px] bg-white border-r border-gray-200 flex flex-col">
       {/* Logo / Brand */}
       <div className="p-6">
-        <h1 className="font-semibold text-gray-900">Social Hub</h1>
+        <h1 className="font-semibold text-gray-900">G-Socials</h1>
       </div>
 
       {/* Navigation */}
@@ -94,8 +94,12 @@ export function Sidebar() {
             {user?.name?.charAt(0).toUpperCase() || "U"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{user?.name || "User"}</p>
-            <p className="text-xs text-gray-500 truncate">{user?.email || ""}</p>
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {user?.name || "User"}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {user?.email || ""}
+            </p>
           </div>
           <button
             onClick={handleLogout}

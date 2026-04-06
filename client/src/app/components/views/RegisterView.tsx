@@ -48,7 +48,7 @@ export function RegisterView() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <Card className="w-full max-w-md p-8 space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Social Hub</h1>
+          <h1 className="text-3xl font-bold">G-Socials</h1>
           <p className="text-gray-600">Create your account</p>
         </div>
 

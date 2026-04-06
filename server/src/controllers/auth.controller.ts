@@ -93,7 +93,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
   res.clearCookie("refreshToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     path: "/api/auth",
   });
 
@@ -175,7 +175,12 @@ export async function deleteAccount(
   await prisma.user.delete({ where: { id: userId } });
 
   // Clear auth cookie
-  res.clearCookie("refreshToken", { path: "/api/auth" });
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    path: "/api/auth",
+  });
 
   sendSuccess(res, { message: "Account and all associated data deleted successfully" });
 }
@@ -183,10 +188,14 @@ export async function deleteAccount(
 // ---- Helper ----
 
 function setRefreshCookie(res: Response, token: string): void {
+  const isProd = process.env.NODE_ENV === "production";
   res.cookie("refreshToken", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    secure: isProd,
+    // "none" (cross-origin, requires secure=true) for production so the cookie
+    // is sent from vercel.app / localhost → onrender.com.
+    // "strict" for local dev where client + server share the same hostname.
+    sameSite: isProd ? "none" : "strict",
     path: "/api/auth",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });

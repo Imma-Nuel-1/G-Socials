@@ -11,7 +11,7 @@ import { Label } from "../ui/label";
 import { Card } from "../ui/card";
 import { socialAccountService } from "@/services/socialAccountService";
 
-const OAUTH_CODE_KEY = 'oauth_pending_code';
+const OAUTH_CODE_KEY = "oauth_pending_code";
 
 export function LoginView() {
   const navigate = useNavigate();
@@ -24,7 +24,8 @@ export function LoginView() {
   const [error, setError] = useState("");
 
   // Check if we came here from an OAuth callback (session had expired)
-  const hasPendingOAuth = new URLSearchParams(location.search).get('oauth_pending') === '1';
+  const hasPendingOAuth =
+    new URLSearchParams(location.search).get("oauth_pending") === "1";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,13 +44,21 @@ export function LoginView() {
             platform: string;
             redirectUri: string;
           };
-          const platformId = platform.toLowerCase() as import('@/types').PlatformId;
-          const account = await socialAccountService.handleCallback(platformId, code, redirectUri);
-          navigate('/settings', { replace: true, state: { connectedAccountId: account.id } });
+          const platformId =
+            platform.toLowerCase() as import("@/types").PlatformId;
+          const account = await socialAccountService.handleCallback(
+            platformId,
+            code,
+            redirectUri,
+          );
+          navigate("/settings", {
+            replace: true,
+            state: { connectedAccountId: account.id },
+          });
           return;
         } catch {
           // Code exchange failed (code may have expired) — just go to settings
-          navigate('/settings', { replace: true });
+          navigate("/settings", { replace: true });
           return;
         }
       }
@@ -64,14 +73,15 @@ export function LoginView() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <Card className="w-full max-w-md p-8 space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Social Hub</h1>
+          <h1 className="text-3xl font-bold">G-Socials</h1>
           <p className="text-gray-600">Sign in to your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {hasPendingOAuth && !error && (
             <div className="p-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded">
-              Your session expired while connecting your account. Sign in below and we'll finish connecting it automatically.
+              Your session expired while connecting your account. Sign in below
+              and we'll finish connecting it automatically.
             </div>
           )}
 

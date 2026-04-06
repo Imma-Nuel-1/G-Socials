@@ -74,7 +74,7 @@ function processQueue(error: Error | null, token: string | null) {
 }
 
 apiClient.interceptors.response.use(
-  (response) => response.data,  // ✅ Return just the API response, not axios wrapper
+  (response) => response.data, // ✅ Return just the API response, not axios wrapper
   async (
     error: AxiosError<{ success?: boolean; error?: string; message?: string }>,
   ) => {
@@ -123,9 +123,14 @@ apiClient.interceptors.response.use(
         }
       } catch (refreshError) {
         processQueue(refreshError as Error, null);
-        // Refresh failed — clear auth state (no hard redirect)
+        // Refresh failed — wipe all auth state and force back to login
         removeStorageItem(STORAGE_KEYS.AUTH_TOKEN);
         removeStorageItem(STORAGE_KEYS.USER);
+        removeStorageItem(STORAGE_KEYS.WORKSPACE_ID);
+        // Hard redirect clears React state without needing a shared event bus
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
         return Promise.reject(
           new Error("Session expired — please log in again"),
         );
